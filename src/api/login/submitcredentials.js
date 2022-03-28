@@ -9,12 +9,17 @@ module.exports = async (clientID, options) => {
         method: 'POST',
         headers: {
             'Host': 'accounts.stockx.com',
-            'sec-fetch-mode': 'cors',
+            'sec-ch-ua': '" Not A;Brand";v="99", "Chromium";v="96", "Google Chrome";v="96"',
             'auth0-client': clientID,
-            'origin': 'https://accounts.stockx.com',
-            'user-agent': userAgent,
             'content-type': 'application/json',
-            'sec-fetch-site': 'same-origin'
+            'sec-ch-ua-mobile': '?0',
+            'user-agent': userAgent,
+            'sec-ch-ua-platform': '"macOS"',
+            'accept': '*/*',
+            'sec-fetch-site': 'same-origin',
+            'sec-fetch-mode': 'cors',
+            'sec-fetch-dest': 'empty',
+            'accept-language': 'it-IT,it;q=0.9'
         },
         json: {
             client_id: clientID,

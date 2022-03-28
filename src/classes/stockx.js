@@ -11,6 +11,15 @@ const updateBid = require('../api/updatebid/index');
 const deleteBid = require('../api/deletebid/index');
 const { formatProxy } = require('../utils');
 
+const randomUseragent = require('random-useragent');
+
+const getProfile = require('../api/profile/index');
+const getAsks = require('../api/getasks/index');
+const getBids = require('../api/getbids/index');
+const writebody = require('../utils/writebody');
+
+const fs = require('fs');
+
 module.exports = class StockX {
     /**
      * 
@@ -25,10 +34,59 @@ module.exports = class StockX {
         this.currency = 'USD';
         this.cookieJar = request.jar();
         this.loggedIn = false;
-        this.userAgent = userAgent !== undefined ? userAgent : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36';
+        this.userAgent = userAgent !== undefined ? userAgent : randomUseragent.getRandom();
 
         this.currency = currency == undefined ? 'USD' : currency;
         this.proxy = proxy == undefined || proxy.trim() == '' ? undefined : formatProxy(proxy);
+    };
+
+    async getProfile(){
+        if (!this.loggedIn) throw new Error("You must be logged in before getting the profile data!");
+
+        const profile = await getProfile(this.token, {
+            cookieJar: this.cookieJar, 
+            proxy: this.proxy,
+            userAgent: this.userAgent
+        });
+
+        this.customerId = profile['Customer']['id'];
+
+        return profile;
+    };
+
+    async getAsks(){
+        if (!this.loggedIn) throw new Error("You must be logged in before getting the asks!");
+        if (this.customerId == undefined) throw new Error("No customerId found!");
+
+        const asks = await getAsks(this.token, this.customerId, {
+            currency: this.currency, 
+            cookieJar: this.cookieJar, 
+            proxy: this.proxy,
+            userAgent: this.userAgent
+        });
+
+        return asks;
+    };
+
+    /**
+     * 
+     * @param {string} type - The type of bids to get (pending|buying|current)
+     * 
+     */
+    async getBids(type){
+        if (!this.loggedIn) throw new Error("You must be logged in before getting the bids!");
+        if (this.customerId == undefined) throw new Error("No customerId found!");
+        if(type != "pending" && type != "buying" && type != "current") throw new Error("Unsupported bids type"); 
+
+        const bids = await getBids(this.token, this.customerId, {
+            type: type,
+            currency: this.currency, 
+            cookieJar: this.cookieJar, 
+            proxy: this.proxy,
+            userAgent: this.userAgent
+        });
+
+        return bids['PortfolioItems']
     };
 
     /**
@@ -96,6 +154,29 @@ module.exports = class StockX {
     async login(options = {}){
         const { user, password } = options;
 
+        //Check if previous login token exists and is still valid
+        fs.readFile(__dirname + '/../../storage/token.txt', 'utf8' , (err, data) => {
+            if (!err) {
+                let buff = Buffer.from(data, 'base64');
+                let token = buff.toString('ascii');
+                let exp = token.split('"exp":')[1].split(",")[0];
+                if(exp < new Date().getTime()/1000) {
+                    fs.unlink(__dirname + '/../../storage/token.txt', (err, data) => { 
+                        if(!err) {
+                            console.log("Valid login token found!");
+                        } else {
+                            console.log("Invalid token found, regenerating...");
+                        }
+                    });
+                } else {
+                    this.token = token;
+                    this.loggedIn = true;
+                }
+            }
+        })
+
+        if (this.token !== undefined) return;
+
         //Create login
         await login({
             user,
@@ -112,6 +193,12 @@ module.exports = class StockX {
         //Store the account token as a local class variable
         this.token = this.token.toString().split('token=')[1].split(';')[0];
         this.loggedIn = true;
+
+        fs.writeFile(__dirname + '/../../storage/token.txt', this.token, function(err, data){
+            if (err){
+                return console.error('Failed to save token: ' + err);
+            }
+        });
     };
 
     /**
