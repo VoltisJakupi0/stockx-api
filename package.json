@@ -1,12 +1,13 @@
 {
   "name": "stockx-api",
   "version": "2.0",
-  "description": "communicate with the unofficial StockX API",
+  "description": "enhance the communication with the unofficial StockX API",
   "main": "index.js",
   "scripts": {
     "test": "mocha --timeout 50000"
   },
-  "author": "Matthew Mulfinger",
+  "author": "Stefano Zeppieri",
+  "contributor": ["Matthew Mulfinger"],
   "license": "MIT",
   "repository": {
     "type": "git",
